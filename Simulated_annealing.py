@@ -26,9 +26,14 @@ class Annealer():
         self.step = 0
         self.temperature_schedule = temperature_schedule
         self.scheduling_constant = scheduling_constant
+        self.optimal_state = self.state.state
 
     def calc_prob(self, energy_change : float) -> float:
-        prob = math.exp(- energy_change / self.temperature)
+        if self.temperature == 0:
+            prob = 0
+        else:
+            prob = math.exp(- energy_change / self.temperature)
+        
         return prob
     
     def linear_schedule(self) -> None:
@@ -56,42 +61,51 @@ class Annealer():
     def anneal_step(self) -> bool:
         neighbour_idx, neighbour_change = self.state.get_neighbour()
         del_E = self.state.cost_change(neighbour_idx, neighbour_change)
-
-        changed = False
         
         if (del_E <= 0):
             self.state.update(neighbour_idx, neighbour_change)
-            changed = True
         else:
             prob = self.calc_prob(del_E)
             if (random.random() <= prob):
                 self.state.update(neighbour_idx, neighbour_change)
-                changed = True
+            else:
+                del_E = 0
         
         self.step += 1
         self.schedule_step()
 
-        return changed
+        return del_E
+
     
     def anneal(self, steps = None, stop_temp = None, unchanged_threshold = 100) -> State:
         initial_step = self.step
-        unchanged = 0
-        changed = False
+        cost = self.state.cost(None)
+        best_cost = cost
+        best_state = self.state.state
+
+        unchanged_steps = 0
 
         while True:
-            changed = self.anneal_step()
+            del_E = self.anneal_step()
 
-            if changed:
-                unchanged = 0
+            cost += del_E
+
+            if cost < best_cost:
+                best_cost = cost
+                best_state = self.state.state
+                unchanged_steps = 0
             else:
-                unchanged += 1
+                unchanged_steps += 1
 
             if (steps is not None) and ((self.step - initial_step) >= steps):
                 break
             elif (stop_temp is not None) and (self.temperature <= stop_temp):
                 break
-            elif (unchanged >= unchanged_threshold):
+            elif (unchanged_steps >= unchanged_threshold):
                 break
+        
+        self.optimal_state = best_state
+        self.state.state = best_state
         
         return self.state
     
