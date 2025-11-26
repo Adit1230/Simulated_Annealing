@@ -20,7 +20,7 @@ class State():
 
 
 class Annealer():
-    def __init__(self, state : State, initial_temp : float, temperature_schedule : str | Callable[[float, int], float], scheduling_constant : float):
+    def __init__(self, state : State, initial_temp : float, temperature_schedule : str | Callable[[float, int, float], float], scheduling_constant : float):
         self.state = state
         self.temperature = initial_temp
         self.step = 0
@@ -56,7 +56,7 @@ class Annealer():
         elif self.temperature_schedule == 'logarithmic':
             self.logarithmic_schedule()
         else:
-            self.temperature = self.temperature_schedule(self.temperature, self.step)
+            self.temperature = self.temperature_schedule(self.temperature, self.step, self.scheduling_constant)
     
     def anneal_step(self) -> bool:
         neighbour_idx, neighbour_change = self.state.get_neighbour()
@@ -106,6 +106,27 @@ class Annealer():
         
         self.optimal_state = best_state
         self.state.state = best_state
+
+
+        temp = self.temperature
+        self.temperature = 0
+
+        while True:
+            del_E = self.anneal_step()
+
+            cost += del_E
+
+            if cost < best_cost:
+                best_cost = cost
+                best_state = self.state.state
+                unchanged_steps = 0
+            else:
+                unchanged_steps += 1
+
+            if (unchanged_steps >= 1000):
+                break
+        
+        self.temperature = temp
         
         return self.state
     
