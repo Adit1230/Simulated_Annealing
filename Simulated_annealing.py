@@ -5,6 +5,7 @@ from heapdict import heapdict
 
 class State():
     def __init__(self):
+        self.state = []
         pass
 
     def cost(self, state) -> float:
@@ -22,8 +23,14 @@ class State():
     def get_all_neighbours(self) -> heapdict:
         pass
 
-    def get_affected_moves(self, move : tuple) -> list[tuple[tuple, float]]:
-        pass
+    def get_affected_moves(self, move : tuple, queue : heapdict) -> heapdict:
+        initial_state = self.state
+        self.update(move)
+        del queue
+        queue = self.get_all_neighbours()
+        self.state = initial_state
+
+        return queue
 
 class Annealer():
     def __init__(self, state : State, initial_temp : float, temperature_schedule : str | Callable[[float, int, float], float], scheduling_constant : float):
@@ -142,12 +149,9 @@ class Annealer():
         move, del_E = queue.popitem()
 
         while (del_E < 0 and len(queue) > 0):
-            affected_moves = self.state.get_affected_moves(move)
+            queue = self.state.get_affected_moves(move, queue)
             self.state.update(move)
             final_cost += del_E
-
-            for move, cost in affected_moves:
-                queue[move] = cost
             
             move, del_E = queue.popitem()
         
