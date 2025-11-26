@@ -1,6 +1,7 @@
 import math
 import random
 from typing import Callable
+from heapdict import heapdict
 
 class State():
     def __init__(self):
@@ -9,15 +10,20 @@ class State():
     def cost(self, state) -> float:
         pass
 
-    def get_neighbour(self) -> tuple[int, float]:
+    def get_neighbour(self) -> tuple:
         pass
 
-    def update(self, idx : int, change : float) -> None:
+    def update(self, move : tuple) -> None:
         pass
 
-    def cost_change(self, idx : int, change : float) -> float:
+    def cost_change(self, move : tuple) -> float:
         pass
 
+    def get_all_neighbours(self) -> heapdict:
+        pass
+
+    def get_affected_moves(self, move : tuple) -> list[tuple[tuple, float]]:
+        pass
 
 class Annealer():
     def __init__(self, state : State, initial_temp : float, temperature_schedule : str | Callable[[float, int, float], float], scheduling_constant : float):
@@ -59,15 +65,15 @@ class Annealer():
             self.temperature = self.temperature_schedule(self.temperature, self.step, self.scheduling_constant)
     
     def anneal_step(self) -> bool:
-        neighbour_idx, neighbour_change = self.state.get_neighbour()
-        del_E = self.state.cost_change(neighbour_idx, neighbour_change)
+        neighbour_move = self.state.get_neighbour()
+        del_E = self.state.cost_change(neighbour_move)
         
         if (del_E <= 0):
-            self.state.update(neighbour_idx, neighbour_change)
+            self.state.update(neighbour_move)
         else:
             prob = self.calc_prob(del_E)
             if (random.random() <= prob):
-                self.state.update(neighbour_idx, neighbour_change)
+                self.state.update(neighbour_move)
             else:
                 del_E = 0
         
@@ -121,33 +127,31 @@ class Annealer():
             self.state.state = best_state.copy()
             cost = best_cost
 
-
-        temp = self.temperature
-        self.temperature = 0
-
-        unchanged_steps = 0
-        while True:
-            del_E = self.anneal_step()
-
-            cost += del_E
-
-            if cost < best_cost:
-                best_cost = cost
-                best_state = self.state.state
-                unchanged_steps = 0
-            else:
-                unchanged_steps += 1
-
-            if (unchanged_steps >= 10000):
-                break
-        
-        self.temperature = temp
-        self.optimal_state = best_state.copy()
+        best_cost = self.greedy_search()
+        self.optimal_state = self.state.state
 
         print(f"Final local search")
         print(f"Best cost : {best_cost}\n")
         
         return self.state
+    
+    def greedy_search(self):
+        final_cost = self.state.cost(None)
+        queue = self.state.get_all_neighbours()
+
+        move, del_E = queue.popitem()
+
+        while (del_E < 0 and len(queue) > 0):
+            affected_moves = self.state.get_affected_moves(move)
+            self.state.update(move)
+            final_cost += del_E
+
+            for move, cost in affected_moves:
+                queue[move] = cost
+            
+            move, del_E = queue.popitem()
+        
+        return final_cost
     
     def get_solution(self) -> State:
         return self.state
