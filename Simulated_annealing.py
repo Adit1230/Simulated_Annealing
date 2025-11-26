@@ -24,7 +24,7 @@ class State():
         pass
 
     def get_affected_moves(self, move : tuple, queue : heapdict) -> heapdict:
-        initial_state = self.state
+        initial_state = self.state.copy()
         self.update(move)
         del queue
         queue = self.get_all_neighbours()
@@ -90,7 +90,7 @@ class Annealer():
         return del_E
 
     
-    def anneal(self, steps = None, stop_temp = None, unchanged_threshold = 100, initial_temp = None, reset_temp = 0.5, n_runs = 10) -> State:
+    def anneal(self, steps = None, stop_temp = None, unchanged_threshold = 100, initial_temp = None, reset_temp = 0.5, n_runs = 10, local_search = False) -> State:
         initial_step = self.step
         cost = self.state.cost(None)
         best_cost = cost
@@ -134,11 +134,13 @@ class Annealer():
             self.state.state = best_state.copy()
             cost = best_cost
 
-        best_cost = self.greedy_search()
-        self.optimal_state = self.state.state
+        if local_search:
+            best_cost = self.greedy_search()
 
-        print(f"Final local search")
-        print(f"Best cost : {best_cost}\n")
+            print(f"Final local search")
+            print(f"Best cost : {best_cost}\n")
+        
+            self.optimal_state = self.state.state
         
         return self.state
     
