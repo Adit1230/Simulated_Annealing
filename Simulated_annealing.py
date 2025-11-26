@@ -46,7 +46,7 @@ class Annealer():
         self.temperature = (1 - self.scheduling_constant) * self.temperature
     
     def logarithmic_schedule(self):
-        self.temperature = self.scheduling_constant / math.log(self.step + 1)
+        self.temperature = self.scheduling_constant / math.log(self.step + 2)
     
     def schedule_step(self) -> None:
         if self.temperature_schedule == 'linear':
@@ -77,40 +77,55 @@ class Annealer():
         return del_E
 
     
-    def anneal(self, steps = None, stop_temp = None, unchanged_threshold = 100) -> State:
+    def anneal(self, steps = None, stop_temp = None, unchanged_threshold = 100, initial_temp = None, reset_temp = 0.5, n_runs = 10) -> State:
         initial_step = self.step
         cost = self.state.cost(None)
         best_cost = cost
-        best_state = self.state.state
+        best_state = self.state.state.copy()
 
-        unchanged_steps = 0
+        if initial_temp is not None:
+            self.temperature = initial_temp
 
-        while True:
-            del_E = self.anneal_step()
+        initial_temp = self.temperature / reset_temp
 
-            cost += del_E
+        for i in range(n_runs):
+            initial_temp = reset_temp * initial_temp
+            self.temperature = initial_temp
+            self.step = 0
 
-            if cost < best_cost:
-                best_cost = cost
-                best_state = self.state.state
-                unchanged_steps = 0
-            else:
-                unchanged_steps += 1
+            unchanged_steps = 0
 
-            if (steps is not None) and ((self.step - initial_step) >= steps):
-                break
-            elif (stop_temp is not None) and (self.temperature <= stop_temp):
-                break
-            elif (unchanged_steps >= unchanged_threshold):
-                break
-        
-        self.optimal_state = best_state
-        self.state.state = best_state
+            while True:
+                del_E = self.anneal_step()
+
+                cost += del_E
+
+                if cost < best_cost:
+                    best_cost = cost
+                    best_state = self.state.state.copy()
+                    unchanged_steps = 0
+                else:
+                    unchanged_steps += 1
+
+                if (steps is not None) and ((self.step - initial_step) >= steps):
+                    break
+                elif (stop_temp is not None) and (self.temperature <= stop_temp):
+                    break
+                elif (unchanged_steps >= unchanged_threshold):
+                    break
+
+            print(f"Run {i+1} / {n_runs}")
+            print(f"Temperature : {initial_temp:0.4f}  Best cost : {best_cost}\n")
+            
+            self.optimal_state = best_state.copy()
+            self.state.state = best_state.copy()
+            cost = best_cost
 
 
         temp = self.temperature
         self.temperature = 0
 
+        unchanged_steps = 0
         while True:
             del_E = self.anneal_step()
 
@@ -123,10 +138,14 @@ class Annealer():
             else:
                 unchanged_steps += 1
 
-            if (unchanged_steps >= 1000):
+            if (unchanged_steps >= 10000):
                 break
         
         self.temperature = temp
+        self.optimal_state = best_state.copy()
+
+        print(f"Final local search")
+        print(f"Best cost : {best_cost}\n")
         
         return self.state
     
