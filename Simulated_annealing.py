@@ -98,6 +98,8 @@ class Annealer():
 
         if initial_temp is not None:
             self.temperature = initial_temp
+        elif initial_temp == "logarithmic":
+            self.scheduling_constant = initial_temp
 
         initial_temp = self.temperature / reset_temp
 
@@ -140,7 +142,7 @@ class Annealer():
             print(f"Final local search")
             print(f"Best cost : {best_cost}\n")
         
-            self.optimal_state = self.state.state
+            self.optimal_state = self.state.state.copy()
         
         return self.state
     
@@ -148,9 +150,10 @@ class Annealer():
         final_cost = self.state.cost(None)
         queue = self.state.get_all_neighbours()
 
-        move, del_E = queue.popitem()
+        if len(queue) > 0:
+            move, del_E = queue.popitem()
 
-        while (del_E < 0 and len(queue) > 0):
+        while (len(queue) > 0 and  del_E < 0):
             queue = self.state.get_affected_moves(move, queue)
             self.state.update(move)
             final_cost += del_E
